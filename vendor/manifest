@@ -1,0 +1,11 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "gopkg.in/olivere/elastic.v2",
+			"repository": "https://gopkg.in/olivere/elastic.v2",
+			"revision": "26763e17b4038b0b74c5d3316806f63351e299c0",
+			"branch": "master"
+		}
+	]
+}
