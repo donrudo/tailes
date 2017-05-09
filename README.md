@@ -4,7 +4,7 @@ tailes is just a POC of a tail tool to query elasticsearch endpoints.
 
 Build
 -----
-process requite gb ( http://getgb.io ) then just do:
+The build process requires gb ( http://getgb.io ) (and hence golang too), just do:
 
 ```
 gb vendor restore
