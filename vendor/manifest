@@ -2,9 +2,35 @@
 	"version": 0,
 	"dependencies": [
 		{
+			"importpath": "github.com/pkg/errors",
+			"repository": "https://github.com/pkg/errors",
+			"revision": "c605e284fe17294bda444b34710735b29d1a9d90",
+			"branch": "master"
+		},
+		{
+			"importpath": "golang.org/x/net/context",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "feeb485667d1fdabe727840fe00adc22431bc86e",
+			"branch": "master",
+			"path": "/context"
+		},
+		{
+			"importpath": "golang.org/x/sync/errgroup",
+			"repository": "https://go.googlesource.com/sync",
+			"revision": "305c7b3edb4364a58141b30686a61a87bdb79a3a",
+			"branch": "master",
+			"path": "/errgroup"
+		},
+		{
 			"importpath": "gopkg.in/olivere/elastic.v2",
 			"repository": "https://gopkg.in/olivere/elastic.v2",
-			"revision": "26763e17b4038b0b74c5d3316806f63351e299c0",
+			"revision": "54283cb278d855e562a3d20f6c5afdbe1decf25b",
+			"branch": "master"
+		},
+		{
+			"importpath": "gopkg.in/olivere/elastic.v5",
+			"repository": "https://gopkg.in/olivere/elastic.v5",
+			"revision": "d401c698bf1e0f5f6c13a5388a79967f095836be",
 			"branch": "master"
 		}
 	]
