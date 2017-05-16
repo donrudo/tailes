@@ -10,14 +10,14 @@
 		{
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
-			"revision": "feeb485667d1fdabe727840fe00adc22431bc86e",
+			"revision": "34057069f4ab13dc4433c68d368737ebeafcccdc",
 			"branch": "master",
 			"path": "/context"
 		},
 		{
 			"importpath": "golang.org/x/sync/errgroup",
 			"repository": "https://go.googlesource.com/sync",
-			"revision": "305c7b3edb4364a58141b30686a61a87bdb79a3a",
+			"revision": "57af736625aaa69dfa099432bb67e0808eef3bcc",
 			"branch": "master",
 			"path": "/errgroup"
 		},
@@ -30,7 +30,7 @@
 		{
 			"importpath": "gopkg.in/olivere/elastic.v5",
 			"repository": "https://gopkg.in/olivere/elastic.v5",
-			"revision": "d401c698bf1e0f5f6c13a5388a79967f095836be",
+			"revision": "3f49414dc29d45ba96fde19ba72bc646077dbffd",
 			"branch": "master"
 		}
 	]
