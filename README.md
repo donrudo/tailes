@@ -1,6 +1,7 @@
 tailes
 =======
-tailes is just a POC of a tail tool to query elasticsearch endpoints.
+
+Tail tool to query elasticsearch endpoints, autodetects the elasticsearch version to decide which library to use in the background.
 
 Build
 -----
