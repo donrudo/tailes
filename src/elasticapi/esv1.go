@@ -76,7 +76,7 @@ func (Api EsV1) Run(url string, index string, query string, field string, realTi
 	boolFilter := elastic.NewBoolFilter().Must(TimeFilter)
 	filterQuery := elastic.NewFilteredQuery(searchQuery).Filter(boolFilter)
 
-	perr.Printf("Results: %d, Index: %s, Query: %s\n", results.TotalHits(), index, query)
+	perr.Printf("Results: %d, Inde: %s, Query: %s\n", results.TotalHits(), index, query)
 	fmt.Printf(result)
 
 	for realTime {
