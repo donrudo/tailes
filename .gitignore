@@ -1,5 +1,7 @@
 bin/*
 build/*
+pkg/mod/*
+pkg/sumdb/*
 vendor/src/*
 excluded/*
 .idea/*

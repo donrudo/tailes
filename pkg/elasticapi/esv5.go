@@ -3,7 +3,7 @@ package elasticapi
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/context"
+	"golang.org/pkg/context"
 	"gopkg.in/olivere/elastic.v5"
 	"os"
 	"time"
