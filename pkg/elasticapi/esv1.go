@@ -3,9 +3,9 @@ package elasticapi
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/olivere/elastic.v2"
 	"os"
 	"time"
+	"gopkg.in/olivere/elastic.v2"
 )
 
 type EsV1 struct {

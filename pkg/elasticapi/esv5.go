@@ -3,11 +3,12 @@ package elasticapi
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/pkg/context"
-	"gopkg.in/olivere/elastic.v5"
+	"context"
+	"github.com/olivere/elastic/v7"
 	"os"
 	"time"
 )
+
 
 type EsV5 struct {
 	EsAPI

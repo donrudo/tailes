@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"elasticapi"
+	"github.com/donrudo/tailes/pkg/elasticapi"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
