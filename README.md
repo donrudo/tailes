@@ -2,6 +2,9 @@ BROKEN PROJECT
 ======
 I stopped the maintenance of this project for long time due to lack of time to develop it.
 
+The new folder structure is based on the proposal at https://github.com/golang-standards/project-layout and some snippets are taken from https://github.com/digitalocean/doctl  (specially the Makefile) 
+
+
 tailes
 =======
 
