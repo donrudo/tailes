@@ -1,34 +1,42 @@
 package elasticapi
 
 import (
-	"gopkg.in/olivere/elastic.v2"
-	"fmt"
 	"encoding/json"
-	"time"
+	"fmt"
+	"gopkg.in/olivere/elastic.v2"
 	"os"
+	"time"
 )
 
 type EsV1 struct {
-	Client *elastic.Client
-	err error
+	EsAPI
 
-
-	SearchConfig struct {
-		Index string
-		Query string
-		Field string
-		Buffersize int
-	}
+	Server  *ElasticInfo
+	Client  *elastic.Client
+	lastErr error
+	Ctx     context
 }
 
-func UseClientV1(url string) (EsV1){
+func UseClientV1(serverconfig *ElasticInfo) EsV1 {
 	var Api EsV1
-	Api.Client, Api.err = elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(url))
+
+	Api.Server = serverconfig
+	Api.Client, Api.lastErr = elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(serverconfig.SearchConfig.Url))
+
 	return Api
 }
 
-func (Api EsV1) GetResultString(results *elastic.SearchResult) (string, timeRange ) {
+func (Api EsV1) NextSearch() (string, timeRange, error) {
 	var TimeRange timeRange
+
+	searchQuery := elastic.NewQueryStringQuery(Api.Server.SearchConfig.Query).Field(Api.Server.SearchConfig.Field)
+	searchQuery.UseDisMax(true)
+	searchQuery.AllowLeadingWildcard(false)
+	results, err := Api.Client.Search().Index(Api.Server.SearchConfig.Index).Query(searchQuery).From(0).Size(Api.Server.SearchConfig.Buffersize).Do() //.Sort("@timestamp", false).Pretty(true).Do()
+	if err != nil {
+		return "", TimeRange, err
+	}
+
 	result := "["
 	firstLoop := true
 	var timestampOnly elasticSearchPrototype
@@ -48,50 +56,49 @@ func (Api EsV1) GetResultString(results *elastic.SearchResult) (string, timeRang
 		result = fmt.Sprintf("%s%s", result, string(raw))
 	}
 	result += "]"
-	return result, TimeRange
+	return result, TimeRange, nil
 }
 
-func (Api EsV1) Run(url string, index string, query string, field string, realTime bool, bufferSize int) {
+func (Api EsV1) Run() {
 
-	version, err := Api.Client.ElasticsearchVersion(url)
+	var filterQuery elastic.FilteredQuery
+	var TimeFilter elastic.RangeFilter
+
+	version, err := Api.Client.ElasticsearchVersion(Api.Server.SearchConfig.Url)
 	ExitOnError(err)
 	perr.Println("Elasticsearch Cluster Version:", version)
 
-	exists, err := Api.Client.IndexExists(index).Do()
+	exists, err := Api.Client.IndexExists(Api.Server.SearchConfig.Index).Do()
 	ExitOnError(err)
 
 	if !exists {
-		perr.Println("Error: Not found Index ", index)
+		perr.Println("Error: Not found Index ", Api.Server.SearchConfig.Index)
 		os.Exit(1)
 	}
-	searchQuery := elastic.NewQueryStringQuery(query).Field(field)
-	searchQuery.UseDisMax(true)
-	searchQuery.AllowLeadingWildcard(false)
-	results, err := Api.Client.Search().Index(index).Query(searchQuery).From(0).Size(bufferSize).Sort("@timestamp", false).Pretty(true).Do()
 
+	qry := elastic.NewQueryStringQuery(Api.Server.SearchConfig.Query)
+	result, TimeRange, err := Api.NextSearch()
 	ExitOnError(err)
+	if Api.Server.SearchConfig.UsesTimestamp {
+		TimeFilter := elastic.NewRangeFilter("@timestamp").Gt(TimeRange.Gte)
+		boolFilter := elastic.NewBoolFilter().Must(TimeFilter)
+		filterQuery = elastic.NewFilteredQuery(qry).Filter(boolFilter)
+	} else {
+		filterQuery = elastic.NewFilteredQuery(qry)
+	}
 
-	result, TimeRange := Api.GetResultString(results)
-	TimeFilter := elastic.NewRangeFilter("@timestamp").Gt(TimeRange.Gte)
-	boolFilter := elastic.NewBoolFilter().Must(TimeFilter)
-	filterQuery := elastic.NewFilteredQuery(searchQuery).Filter(boolFilter)
-
-	perr.Printf("Results: %d, Index: %s, Query: %s\n", results.TotalHits(), index, query)
-	fmt.Printf(result)
-
-	for realTime {
+	for Api.Server.SearchConfig.UsesRealTime {
 		time.Sleep(5 * time.Second)
-		results, err = Api.Client.Search().Index(index).Query(filterQuery).Sort("@timestamp", true).Pretty(true).Do()
-		ExitOnError(err)
 		oldGte := TimeRange.Gte
-		result, TimeRange = Api.GetResultString(results)
+		result, TimeRange, err = Api.NextSearch()
+		ExitOnError(err)
 		if TimeRange.Gte == "" {
 			//if the last request is empty, just recycle the last valid timestamp to continue the tailf-ing
 			TimeRange.Gte = oldGte
 		}
 		TimeFilter = elastic.NewRangeFilter("@timestamp").Gt(TimeRange.Gte)
 		boolFilter := elastic.NewBoolFilter().Must(TimeFilter)
-		filterQuery = elastic.NewFilteredQuery(searchQuery).Filter(boolFilter)
+		filterQuery = elastic.NewFilteredQuery(qry).Filter(boolFilter)
 		fmt.Print(fmt.Sprintf(result))
 	}
 }

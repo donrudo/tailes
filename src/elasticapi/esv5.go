@@ -1,34 +1,29 @@
 package elasticapi
 
 import (
-	"gopkg.in/olivere/elastic.v5"
-	"fmt"
 	"encoding/json"
-	"time"
-	"os"
+	"fmt"
 	"golang.org/x/net/context"
+	"gopkg.in/olivere/elastic.v5"
+	"os"
+	"time"
 )
 
 type EsV5 struct {
+	EsAPI
+	Server *ElasticInfo
 	Client *elastic.Client
-	err error
-
-
-	SearchConfig struct {
-		Index string
-		Query string
-		Field string
-		Buffersize int
-	}
+	err    error
 }
 
-func UseClientV5(url string) (EsV5){
-	var Api EsV5
-	Api.Client, Api.err = elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(url))
+func UseClientV5(serverconfig *ElasticInfo) *EsV5 {
+	var Api *EsV5
+	Api.Server = serverconfig
+	Api.Client, Api.err = elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(serverconfig.SearchConfig.Url))
 	return Api
 }
 
-func (Api EsV5) GetResultString(results *elastic.SearchResult) (string, timeRange ) {
+func (Api EsV5) NextSearch() (string, timeRange) {
 	var TimeRange timeRange
 	result := "["
 	firstLoop := true
@@ -52,8 +47,8 @@ func (Api EsV5) GetResultString(results *elastic.SearchResult) (string, timeRang
 	return result, TimeRange
 }
 
-func (Api EsV5) Run(url string, index string, query string, field string, realTime bool, bufferSize int) {
-
+//func (Api EsV5) Run(url string, index string, query string, field string, realTime bool, bufferSize int) {
+func (Api EsV5) Run() {
 	version, err := Api.Client.ElasticsearchVersion(url)
 	ExitOnError(err)
 	perr.Println("Elasticsearch Cluster Version:", version)
@@ -69,11 +64,12 @@ func (Api EsV5) Run(url string, index string, query string, field string, realTi
 	searchQuery := elastic.NewQueryStringQuery(query).Field(field)
 	searchQuery.UseDisMax(true)
 	searchQuery.AllowLeadingWildcard(false)
-	results, err := Api.Client.Search().Index(index).Query(searchQuery).From(0).Size(bufferSize).Sort("@timestamp", false).Pretty(true).Do(lookup)
-
+	results, err := Api.Client.Search().Index(index).Query(searchQuery).
+		From(0).Size(bufferSize).Sort("@timestamp", false).
+		Pretty(true).Do(lookup)
 	ExitOnError(err)
 
-	result, TimeRange := Api.GetResultString(results)
+	result, TimeRange := Api.NextString(results)
 	TimeFilter := elastic.NewRangeAggregation().Gt(TimeRange.Gte)
 	boolFilter := elastic.NewBoolQuery().Must(TimeFilter)
 	filterQuery := elastic.NewFilterAggregation().Filter(boolFilter)
@@ -81,12 +77,12 @@ func (Api EsV5) Run(url string, index string, query string, field string, realTi
 	perr.Printf("Results: %d, Index: %s, Query: %s\n", results.TotalHits(), index, query)
 	fmt.Printf(result)
 
-	for realTime {
+	for Api.Server.SearchConfig.UsesRealTime {
 		time.Sleep(5 * time.Second)
-		results, err = Api.Client.Search().Index(index).Query(filterQuery).Sort("@timestamp", true).Pretty(true).Do(lookup)
+		results, err = Api.Client.Search().Index(Api.Server.SearchConfig.Index).Query(filterQuery).Sort("@timestamp", true).Pretty(true).Do(lookup)
 		ExitOnError(err)
 		oldGte := TimeRange.Gte
-		result, TimeRange = Api.GetResultString(results)
+		result, TimeRange = Api.NextSearch()
 		if TimeRange.Gte == "" {
 			//if the last request is empty, just recycle the last valid timestamp to continue the tailf-ing
 			TimeRange.Gte = oldGte
@@ -96,4 +92,8 @@ func (Api EsV5) Run(url string, index string, query string, field string, realTi
 		filterQuery = elastic.NewFilterAggregation().Filter(boolFilter)
 		fmt.Print(fmt.Sprintf(result))
 	}
+}
+
+func (Api EsV5) StopSearch() {
+
 }

@@ -1,25 +1,29 @@
 package elasticapi
 
 import (
-	"net/http"
 	"encoding/json"
-	"strings"
 	"errors"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 )
 
-var Info	  ElasticInfo
-var perr       = log.New(os.Stderr, "", 0)
+var (
+	Info   ElasticInfo
+	perr   = log.New(os.Stderr, "", 0)
+	Client EsAPI
+)
 
 const ESV1 = "1."
 const ESV2 = "2."
 const ESV5 = "5."
 
 type EsAPI interface {
-	Run( string,  string, string, string, bool, int)
+	RunSearch()
+	Run()
+	StopSearch()
 }
-
 
 type elasticSearchPrototype struct {
 	Timestamp string `json:"@timestamp"`
@@ -42,8 +46,21 @@ type ElasticInfo struct {
 		LuceneVersion  string `json:"lucene_version"`
 		Number         string `json:"number"`
 	} `json:"version"`
+
+	SearchConfig struct {
+		Index         string
+		Query         string
+		Field         string
+		Url           string
+		UsesRealTime  bool
+		UsesTimestamp bool
+		Buffersize    int
+	}
 }
 
+/**
+ExitOnError validates any erro
+*/
 func ExitOnError(err error) {
 	if err != nil {
 		perr.Println("Error: ", err.Error())
@@ -51,38 +68,30 @@ func ExitOnError(err error) {
 	}
 }
 
-/*func ClusterVersion(url string)(string, error){
-	Info, _ = GetElasticInfo(url)
-	if strings.HasPrefix(Info.Version.Number, ESV1) {
-		return ESV1, nil
-	} else
-	if strings.HasPrefix(Info.Version.Number, ESV2) {
-		return ESV2, nil
-	} else
-	if strings.HasPrefix(Info.Version.Number, ESV5) {
-		return ESV5, nil
-	}
-	return nil, error("Version not compatible or malformed URL")
-}*/
-
-func NewClient(url string)(EsAPI, error){
+func NewClient(url, index, query, field *string,
+	useRealTime, useTimestamp *bool, bufferSize *int) (EsAPI, error) {
 	//elastic.SetSniff(false), elastic.SetURL(url)
-	Info, err := GetElasticInfo(url)
+
+	Info, err := GetElasticInfo(*url)
 	if err != nil {
 		perr.Println(err.Error())
 	}
+
+	Info.SearchConfig.UsesRealTime = *useRealTime
+	Info.SearchConfig.UsesTimestamp = *useTimestamp
+	Info.SearchConfig.Buffersize = *bufferSize
+	Info.SearchConfig.Field = *field
+	Info.SearchConfig.Index = *index
+	Info.SearchConfig.Query = *query
+	Info.SearchConfig.Url = *url
+
 	if strings.HasPrefix(Info.Version.Number, ESV1) {
-		Client := UseClientV1(url)
+		Client := UseClientV1(&Info)
 		return Client, nil
-	} else
-	if strings.HasPrefix(Info.Version.Number, ESV5) {
-		Client := UseClientV5(url)
+	} else if strings.HasPrefix(Info.Version.Number, ESV5) {
+		Client := UseClientV5(&Info)
 		return Client, nil
-	} /*else
-	if strings.HasPrefix(Info.Version.Number, ESV2) {
-		Client := UseClientV2(url)
-		return Client, nil
-	}*/
+	}
 
 	return nil, errors.New(Info.Version.Number + " Version not compatible or malformed URL")
 }
@@ -90,7 +99,7 @@ func NewClient(url string)(EsAPI, error){
 /**
  *	GetElasticInfo from the given url and returns it to be used by the application.
  */
-func GetElasticInfo(url string) (ElasticInfo, error){
+func GetElasticInfo(url string) (ElasticInfo, error) {
 
 	var body ElasticInfo
 
