@@ -1,11 +1,12 @@
 package elasticapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/olivere/elastic.v2"
 	"os"
 	"time"
-	"gopkg.in/olivere/elastic.v2"
 )
 
 type EsV1 struct {
@@ -14,7 +15,7 @@ type EsV1 struct {
 	Server  *ElasticInfo
 	Client  *elastic.Client
 	lastErr error
-	Ctx     context
+	Ctx     context.Context
 }
 
 func UseClientV1(serverconfig *ElasticInfo) EsV1 {
@@ -61,9 +62,6 @@ func (Api EsV1) NextSearch() (string, timeRange, error) {
 
 func (Api EsV1) Run() {
 
-	var filterQuery elastic.FilteredQuery
-	var TimeFilter elastic.RangeFilter
-
 	version, err := Api.Client.ElasticsearchVersion(Api.Server.SearchConfig.Url)
 	ExitOnError(err)
 	perr.Println("Elasticsearch Cluster Version:", version)
@@ -76,16 +74,8 @@ func (Api EsV1) Run() {
 		os.Exit(1)
 	}
 
-	qry := elastic.NewQueryStringQuery(Api.Server.SearchConfig.Query)
 	result, TimeRange, err := Api.NextSearch()
 	ExitOnError(err)
-	if Api.Server.SearchConfig.UsesTimestamp {
-		TimeFilter := elastic.NewRangeFilter("@timestamp").Gt(TimeRange.Gte)
-		boolFilter := elastic.NewBoolFilter().Must(TimeFilter)
-		filterQuery = elastic.NewFilteredQuery(qry).Filter(boolFilter)
-	} else {
-		filterQuery = elastic.NewFilteredQuery(qry)
-	}
 
 	for Api.Server.SearchConfig.UsesRealTime {
 		time.Sleep(5 * time.Second)
@@ -96,9 +86,7 @@ func (Api EsV1) Run() {
 			//if the last request is empty, just recycle the last valid timestamp to continue the tailf-ing
 			TimeRange.Gte = oldGte
 		}
-		TimeFilter = elastic.NewRangeFilter("@timestamp").Gt(TimeRange.Gte)
-		boolFilter := elastic.NewBoolFilter().Must(TimeFilter)
-		filterQuery = elastic.NewFilteredQuery(qry).Filter(boolFilter)
+
 		fmt.Print(fmt.Sprintf(result))
 	}
 }

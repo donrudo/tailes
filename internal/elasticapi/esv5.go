@@ -1,20 +1,20 @@
 package elasticapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"context"
-	"github.com/olivere/elastic/v7"
+	"gopkg.in/olivere/elastic.v5"
 	"os"
 	"time"
 )
-
 
 type EsV5 struct {
 	EsAPI
 	Server *ElasticInfo
 	Client *elastic.Client
 	err    error
+	ctx    context.Context
 }
 
 func UseClientV5(serverconfig *ElasticInfo) *EsV5 {
@@ -29,13 +29,19 @@ func (Api EsV5) NextSearch() (string, timeRange) {
 	result := "["
 	firstLoop := true
 	var timestampOnly elasticSearchPrototype
+	searchQuery := elastic.NewQueryStringQuery(Api.Server.SearchConfig.Query).Field(Api.Server.SearchConfig.Field)
+	searchQuery.UseDisMax(true)
+	searchQuery.AllowLeadingWildcard(false)
+	results, err := Api.Client.Search().Index(Api.Server.SearchConfig.Index).Query(searchQuery).From(0).Size(Api.Server.SearchConfig.Buffersize).Do(Api.ctx) //.Sort("@timestamp", false).Pretty(true).Do()
+	if err != nil {
+
+	}
 	for _, item := range results.Hits.Hits {
 
 		if !firstLoop {
 			result = fmt.Sprintf("%s,\n", result)
-		} else {
-			firstLoop = false
 		}
+		firstLoop = false
 
 		err := json.Unmarshal(*item.Source, &timestampOnly)
 		ExitOnError(err)
@@ -50,37 +56,37 @@ func (Api EsV5) NextSearch() (string, timeRange) {
 
 //func (Api EsV5) Run(url string, index string, query string, field string, realTime bool, bufferSize int) {
 func (Api EsV5) Run() {
-	version, err := Api.Client.ElasticsearchVersion(url)
+	version, err := Api.Client.ElasticsearchVersion(Info.SearchConfig.Url)
 	ExitOnError(err)
 	perr.Println("Elasticsearch Cluster Version:", version)
 
-	lookup := context.Background()
-	exists, err := Api.Client.IndexExists(index).Do(lookup)
+	ctx := context.Background()
+	exists, err := Api.Client.IndexExists(Info.SearchConfig.Index).Do(ctx)
 	ExitOnError(err)
 
 	if !exists {
-		perr.Println("Error: Not found Index ", index)
+		perr.Println("Error: Not found Index ", Info.SearchConfig.Index)
 		os.Exit(1)
 	}
-	searchQuery := elastic.NewQueryStringQuery(query).Field(field)
+	searchQuery := elastic.NewQueryStringQuery(Info.SearchConfig.Query).Field(Info.SearchConfig.Field)
 	searchQuery.UseDisMax(true)
 	searchQuery.AllowLeadingWildcard(false)
-	results, err := Api.Client.Search().Index(index).Query(searchQuery).
-		From(0).Size(bufferSize).Sort("@timestamp", false).
-		Pretty(true).Do(lookup)
+	results, err := Api.Client.Search().Index(Info.SearchConfig.Index).Query(searchQuery).
+		From(0).Size(Info.SearchConfig.Buffersize).Sort("@timestamp", false).
+		Pretty(true).Do(ctx)
 	ExitOnError(err)
 
-	result, TimeRange := Api.NextString(results)
+	result, TimeRange := Api.NextSearch()
 	TimeFilter := elastic.NewRangeAggregation().Gt(TimeRange.Gte)
 	boolFilter := elastic.NewBoolQuery().Must(TimeFilter)
 	filterQuery := elastic.NewFilterAggregation().Filter(boolFilter)
 
-	perr.Printf("Results: %d, Index: %s, Query: %s\n", results.TotalHits(), index, query)
+	perr.Printf("Results: %d, Index: %s, Query: %s\n", results.TotalHits(), Api.Server.SearchConfig.Index, Api.Server.SearchConfig.Query)
 	fmt.Printf(result)
 
 	for Api.Server.SearchConfig.UsesRealTime {
 		time.Sleep(5 * time.Second)
-		results, err = Api.Client.Search().Index(Api.Server.SearchConfig.Index).Query(filterQuery).Sort("@timestamp", true).Pretty(true).Do(lookup)
+		results, err = Api.Client.Search().Index(Api.Server.SearchConfig.Index).Query(filterQuery).Sort("@timestamp", true).Pretty(true).Do(ctx)
 		ExitOnError(err)
 		oldGte := TimeRange.Gte
 		result, TimeRange = Api.NextSearch()
