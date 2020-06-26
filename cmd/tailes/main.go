@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/donrudo/tailes/pkg/elasticapi"
+	"github.com/donrudo/tailes/internal/elasticapi"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	url        = flag.String("url", "", "Elasticsearch endpoint to be used")
-	index      = flag.String("i", "logstash-*", "Index to use to query for results")
-	realTime   = flag.Bool("f", false, "Causes tail to keep reading new entries from Elasticsearch")
+	url      = flag.String("url", "", "Elasticsearch endpoint to be used")
+	index    = flag.String("i", "logstash-*", "Index to use to query for results")
+	realTime = flag.Bool("f", false, "Causes tail to keep reading new entries from Elasticsearch")
+	//timeStamp  = flag.Bool("t", false, "Enables the use of timeStamp searches")
 	bufferSize = flag.Int("n", 10, "Specifies the number of search results to be queried")
 	query      = flag.String("query", "*", "Query to be sent to Elasticsearch")
 	field      = flag.String("field", "message", "Field to apply the query search to")
@@ -33,11 +34,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	es, err := elasticapi.NewClient(*url)
+	es, err := elasticapi.NewClient(url, index, query, field, realTime, bufferSize)
 	if err != nil {
 		perr.Println(err)
 		os.Exit(1)
 	}
-	es.Run(*url, *index, *query, *field, *realTime, *bufferSize)
+	es.Run()
 
 }
