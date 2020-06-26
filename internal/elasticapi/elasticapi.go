@@ -69,7 +69,8 @@ func ExitOnError(err error) {
 }
 
 func NewClient(url, index, query, field *string,
-	useRealTime, useTimestamp *bool, bufferSize *int) (EsAPI, error) {
+	useRealTime *bool, bufferSize *int) (EsAPI, error) {
+	//useRealTime, useTimestamp *bool, bufferSize *int) (EsAPI, error) {
 	//elastic.SetSniff(false), elastic.SetURL(url)
 
 	Info, err := GetElasticInfo(*url)
@@ -78,7 +79,7 @@ func NewClient(url, index, query, field *string,
 	}
 
 	Info.SearchConfig.UsesRealTime = *useRealTime
-	Info.SearchConfig.UsesTimestamp = *useTimestamp
+	//Info.SearchConfig.UsesTimestamp = *useTimestamp
 	Info.SearchConfig.Buffersize = *bufferSize
 	Info.SearchConfig.Field = *field
 	Info.SearchConfig.Index = *index
